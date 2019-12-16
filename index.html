@@ -1,0 +1,374 @@
+<html>
+
+<head>
+  <link href="https://fonts.googleapis.com/css?family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <script src="https://unpkg.com/vuex@2.0.0"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/vue-router@2.0.0/dist/vue-router.js"></script>
+
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+    crossorigin="anonymous" />
+
+  <style>
+    body,
+    html {
+      font-family: "Bebas Neue", cursive;
+      height: 100%;
+    }
+
+    .valid {
+      background-color: rgb(116, 248, 116);
+    }
+
+    .error {
+      background-color: rgb(165, 41, 41);
+    }
+
+    .warning {
+      background-color: rgba(182, 245, 122, 0.973);
+    }
+  </style>
+</head>
+
+<body style="margin:0;padding:0;">
+  <div id="app">
+    <Navbar></Navbar>
+    <router-view></router-view>
+  </div>
+  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+    crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+    crossorigin="anonymous"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+    crossorigin="anonymous"></script>
+
+  <script>
+    var socket = io();
+    // A simple Vuex store with state and mutations
+    const store = new Vuex.Store({
+      state: {
+        count: 0,
+        todos: [
+          { id: 1, text: "abc", done: true },
+          { id: 2, text: "abc", done: false },
+          { id: 3, text: "abc", done: false }
+        ],
+        logs: [],
+        mashingLogs: [],
+        fermentationLogs: [],
+        boilingLogs: [],
+        filteredLogs: []
+      },
+      mutations: {
+        increment: state => state.count++,
+        decrement: state => state.count--,
+        addToLogs: (state, log) => {
+          console.log("MUTATION: ", log.log.log);
+          state.logs.push(log.log.log);
+        },
+        incrementMashing: (state, log) => {
+          state.mashingLogs.push(log.log.log);
+        },
+        INCREMENTLOGS: (state, log) => {
+          // incrementLogs: (state, log) => {
+          console.log(log.log.log);
+          let channel = log.log.log.channel;
+          switch (channel) {
+            case "all":
+              state.logs.unshift(log.log.log.log);
+              break;
+            case "mashing":
+              state.mashingLogs.unshift(log.log.log.log);
+              break;
+            case "boiling":
+              state.boilingLogs.unshift(log.log.log.log);
+              break;
+            case "fermentation":
+              state.fermentationLogs.unshift(log.log.log.log);
+              break;
+            default:
+              state.logs.unshift(log.log.log.log);
+          }
+        }
+      },
+
+      // Getters: are like computed properties in a Vue instance
+      //
+      // Getters compute derived state based on some stored state,
+      // for example filtering a list.
+      getters: {
+        getLogs: (state, getters) => {
+          return getters.logs;
+        },
+        getValid: (state, getters) => (logType, filterType) => {
+          if (logType == "logs")
+            return state.logs.filter(log => {
+              return log.status == filterType;
+            });
+          if (logType == "mashing") {
+            return state.mashingLogs.filter(log => {
+              return log.status == filterType;
+            });
+          }
+          if (logType == "boiling") {
+            return state.boilingLogs.filter(log => {
+              return log.status == filterType;
+            });
+          }
+          if (logType == "fermentation") {
+            return state.fermentationLogs.filter(log => {
+              return log.status == filterType;
+            });
+          }
+        }
+      },
+
+      // Actions: are like methods in a Vue instance
+      //
+      // Actions don't mutate state, they only commit mutations
+      // Actions can be *asynchronous*, i.e. they can access an API
+      actions: {
+        incrementLogs(context, log) {
+          console.log(log.log.channel);
+          context.commit("INCREMENTLOGS", { log });
+        },
+        incrementMashing(context, log, channel) {
+          context.commit("incrementMashing", { log, channel });
+        }
+      }
+    });
+    // catching socket events and handling
+    socket.on("all logs", log => {
+      console.log("LOG! ", log);
+      let channel = "all";
+      console.log(channel);
+      let payload = {
+        log,
+        channel
+      };
+      store.dispatch("incrementLogs", { log: payload });
+    });
+    socket.on("mashing", log => {
+      let channel = "mashing";
+      console.log("MASHING! ", log);
+      let payload = {
+        log,
+        channel
+      };
+      store.dispatch("incrementLogs", { log: payload });
+    });
+
+    socket.on("boiling", log => {
+      let channel = "boiling";
+      console.log("BOILING! : ", log);
+      let payload = {
+        log,
+        channel
+      };
+      store.dispatch("incrementLogs", { log: payload });
+    });
+
+    socket.on("fermentation", log => {
+      let channel = "fermentation";
+      console.log("MASHING! ", log);
+      let payload = {
+        log,
+        channel
+      };
+      store.dispatch("incrementLogs", { log: payload });
+    });
+
+    const Button = {
+      template: `
+                <button>All</button>
+          `
+    };
+
+    /**
+     * TableGenerator
+     * props: log-type is the type of log to generate
+     * */
+    const TableGenerator = {
+      props: ["log-type"],
+      components: {
+        Button
+      },
+      data() {
+        return {
+          valid: "limegreen",
+          warning: "yellow",
+          error: "red",
+          filter: false,
+          filterType: "",
+          toFilter: ""
+        };
+      },
+
+      template: `
+        <div class="text-center">
+            <button @click="filterTable('all')" class="btn btn-primary mx-4">All</button>
+            <button @click="filterTable('valid')" class="btn btn-success mx-4">Valid</button>
+            <button @click="filterTable('warning')" class="btn btn-warning mx-4">Warnings</button>
+            <button @click="filterTable('error')" class="btn btn-error mx-4">Errors</button>
+
+        <table class="table text-center">
+            <thead>
+                <tr>
+                <th scope="col">Status</th>
+                <th scope="col">Message</th>
+                <th scope="col">Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-if="filter == false" v-for="log in getLogs" v-bind:class="[{'valid': log.status === 'valid','warning':log.status=='warning','error':log.status=='error'}]">
+                    <th scope="row">{{log.status}}</th>
+                    <td>{{log.message}}</td>
+                    <td>{{log.timestamp}}</td>
+                </tr>
+                <tr v-if="filter == true" v-for="log in filteredTable" v-bind:class="[{'valid': log.status === 'valid','warning':log.status=='warning','error':log.status=='error'}]">
+                    <th scope="row">{{log.status}}</th>
+                    <td>{{log.message}}</td>
+                    <td>{{log.timestamp}}</td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+         `,
+      computed: {
+        getLogs() {
+          // console.log(this.$store.state.logs);
+          console.log(this.logType);
+          switch (this.logType) {
+            case "logs":
+              return this.$store.state.logs;
+            case "mashing":
+              return this.$store.state.mashingLogs;
+            case "boiling":
+              return this.$store.state.boilingLogs;
+            case "fermentation":
+              return this.$store.state.fermentationLogs;
+            default:
+              return this.$store.state.logs;
+          }
+        },
+        filteredTable() {
+          console.log(
+            "LOGTYPE: ",
+            this.logType,
+            "FIlter type: ",
+            this.filterType
+          );
+          let alterLog = this.logType == "all" ? "logs" : this.logType;
+          return this.$store.getters.getValid(alterLog, this.filterType);
+        }
+      },
+      methods: {
+        filterTable(f) {
+          this.filter = !this.filter;
+          console.log(this.filter);
+          console.log(f);
+          switch (f) {
+            case "all":
+              this.filter = false;
+              break;
+            case "valid":
+              this.filter = true;
+              this.filterType = "valid";
+              break;
+            case "warning":
+              this.filter = true;
+              this.filterType = "warning";
+              break;
+            case "error":
+              this.filter = true;
+              this.filterType = "error";
+
+              break;
+            default:
+              this.filter = false;
+          }
+        }
+      }
+    };
+
+    const All = {
+      components: { TableGenerator },
+      template: `
+            <TableGenerator log-type="all"></TableGenerator>
+         `
+    };
+
+    const Navbar = {
+      template: `
+          <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <router-link to="/" class="nav-link" >Home <span class="sr-only">(current)</span></router-link>
+                    </li>
+                    <li class="nav-item">
+                        <router-link to="mashing" class="nav-link">Mashing</router-link>
+                    </li>
+                    <li class="nav-item">
+                        <router-link to="boiling" class="nav-link">Boiling</router-link>
+                    </li>
+                    <li class="nav-item">
+                        <router-link to="fermentation" class="nav-link">Fermentation</router-link>
+                    </li>
+                    </ul>
+                </div>
+                </nav>
+          `
+    };
+
+    const Mashing = {
+      components: { TableGenerator },
+      template: `
+            <TableGenerator log-type="mashing"></TableGenerator>
+         `
+    };
+    const Boiling = {
+      components: { TableGenerator },
+      template: `
+            <TableGenerator log-type="boiling"></TableGenerator>
+         `
+    };
+    const Fermentation = {
+      components: { TableGenerator },
+      template: `
+            <TableGenerator log-type="fermentation"></TableGenerator>
+         `
+    };
+
+    const router = new VueRouter({
+      routes: [
+        { path: "/", component: "All" },
+        { path: "/mashing", component: "Mashing" },
+        { path: "/boiling", component: "Boiling" },
+        { path: "/fermentation", component: "Fermentation" }
+      ]
+    });
+
+    // render our app
+    const app = new Vue({
+      el: "#app",
+
+      // provide the store using the "store" option.
+      // this will inject the store instance to all child components.
+      store,
+      components: {
+        All,
+        Mashing,
+        Navbar,
+        Boiling,
+        Fermentation,
+        TableGenerator,
+        Button
+      },
+      router
+    });
+  </script>
+</body>
+
+</html>
